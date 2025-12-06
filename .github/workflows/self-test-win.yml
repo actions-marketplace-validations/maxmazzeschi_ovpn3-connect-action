@@ -1,0 +1,28 @@
+name: Self test Windows
+
+on:
+  push:
+    branches:
+      - main
+
+
+jobs:
+  build:
+    name: Build
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: ovpn3-connect-action
+        uses: maxmazzeschi/ovpn3-connect-action@main
+        with:
+            ovpn-config:  ${{ secrets.OVPN_CONFIG_WIN }}
+            vpn-user:     ${{ secrets.OVPN_USER }}
+            vpn-pass:     ${{ secrets.OVPN_PASS }}
+      - name: Network check
+        if: always()
+        run: |
+          ipconfig /all
+      - name: Kill VPN Connection
+        if: always()
+        run: |
+          taskkill /F /IM openvpn.exe

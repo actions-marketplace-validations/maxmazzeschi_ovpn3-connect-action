@@ -1,6 +1,6 @@
 name: ovpn3-connector
 description: 
-  Setup vpn using a self-contained .ovpn file
+  Setup vpn using a self-contained .ovpn file on both Windows and Linux
 inputs:
   ovpn-config:
     description: Complete self-contained .ovpn file
@@ -14,23 +14,41 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Write VPN Files
+    # Steps for Linux runners
+    - name: Write VPN Files (Linux)
+      if: runner.os == 'Linux'
       shell: bash
       run: |
         mkdir -p ~/.ssh
         echo "${{ inputs.ovpn-config }}" > .github/vpn.ovpn
         ls -al .github/vpn.ovpn
-    - name: Install openvpn3
+    - name: Install openvpn3 (Linux)
+      if: runner.os == 'Linux'
       shell: bash
       run: |
-        sudo apt install apt-transport-https
-        sudo wget https://swupdate.openvpn.net/repos/openvpn-repo-pkg-key.pub
-        sudo apt-key add openvpn-repo-pkg-key.pub
-        DISTRO=`lsb_release -c -s`; sudo wget -O /etc/apt/sources.list.d/openvpn3.list https://swupdate.openvpn.net/community/openvpn3/repos/openvpn3-$DISTRO.list
-        sudo apt update
-        sudo apt install -y openvpn3
-    - name: VPN Connect
+        sudo apt-get update && sudo apt-get install openvpn
+    - name: VPN Connect (Linux)
+      if: runner.os == 'Linux'
       shell: bash
       run: |
-        sudo chown -R openvpn:openvpn /var/lib/openvpn3
-        { printf "${{ inputs.vpn-user }}\n${{ inputs.vpn-pass }}\n" ; } | openvpn3 session-start --config .github/vpn.ovpn
+        { printf "${{ inputs.vpn-user }}\n${{ inputs.vpn-pass }}\n" ; } | sudo openvpn --config .github/vpn.ovpn --daemon
+
+    # Steps for Windows runners
+    - name: Write VPN Files (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        mkdir -Force $HOME\.ssh
+        $ovpnConfig = "${{ inputs.ovpn-config }}"
+        $ovpnConfig | Out-File -FilePath .github\vpn.ovpn -Encoding utf8
+        Get-ChildItem -Path .github\vpn.ovpn
+    - name: Install openvpn community (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |  
+        choco install openvpn    
+    - name: VPN Connect (Windows)
+      if: runner.os == 'Windows'
+      shell: pwsh
+      run: |
+        & "openvpn --connect .github\vpn.ovpn"
